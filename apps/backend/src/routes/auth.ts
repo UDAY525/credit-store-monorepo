@@ -8,6 +8,10 @@ import {
 import { pool } from "../config/db.js";
 import type { Request, Response } from "express";
 import "dotenv/config";
+import jwt, { type JwtPayload } from "jsonwebtoken";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const authRoute: Router = Router();
 // const SALT_ROUNDS = 12;
@@ -99,11 +103,30 @@ authRoute.post("/login", async (req, res) => {
       name: user.name,
       email: user.email,
     };
+    dotenv.config();
+
+    const JWT_SECRET = process.env.JWT_SECRET;
+
+    if (!JWT_SECRET) {
+      throw new Error("JWT_SECRET is missing");
+    }
+
+    const token = jwt.sign(loggedInUser, JWT_SECRET, {
+      expiresIn: "15m",
+    });
+
+    res.cookie("accessToken", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 15 * 60 * 1000,
+    });
 
     return res.status(200).json({
       message: "Logged In Succuess",
       data: {
         user: loggedInUser,
+        token,
       },
     });
   } catch (error) {
@@ -111,6 +134,58 @@ authRoute.post("/login", async (req, res) => {
 
     return res.status(500).json({
       message: "Internal Server Error",
+    });
+  }
+});
+
+authRoute.post("/logout", (req: Request, res: Response) => {
+  res.clearCookie("accessToken");
+  return res.status(200).json({
+    message: "Logged out successfully",
+  });
+});
+
+authRoute.get("/getUser", async (req, res) => {
+  const token = req.cookies.accessToken;
+
+  if (!token) {
+    return res.status(401).json({
+      message: "Unauthorized",
+    });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload;
+
+    const result = await pool.query(
+      `
+          SELECT
+            id,
+            name,
+            email
+          FROM users
+          WHERE id = $1
+          `,
+      [decoded.id],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    const user = result.rows[0];
+
+    return res.status(200).json({
+      message: "Fetched User",
+      data: {
+        user,
+      },
+    });
+  } catch {
+    return res.status(401).json({
+      message: "Invalid token",
     });
   }
 });
