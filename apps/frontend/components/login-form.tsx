@@ -19,12 +19,15 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useState } from "react";
 import { ApiResponse, User } from "@credit-store/shared";
+import { redirect } from "next/navigation";
 
 export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
   const [isLoading, setIsLoading] = useState(false);
+
+  console.log(process.env.NEXT_PUBLIC_BACKEND_DOMAIN);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -34,17 +37,20 @@ export function LoginForm({
 
       const formData = new FormData(e.currentTarget);
 
-      const res = await fetch(`${process.env.BACKEND_DOMAIN}/api/auth/login`, {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_DOMAIN}/api/auth/login`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: formData.get("email"),
+            password: formData.get("password"),
+          }),
         },
-        body: JSON.stringify({
-          email: formData.get("email"),
-          password: formData.get("password"),
-        }),
-      });
+      );
 
       const result: ApiResponse<User> = await res.json();
 
@@ -55,8 +61,7 @@ export function LoginForm({
       }
 
       toast.success(result.message ?? "Logged in successfully");
-
-      console.log(result.data);
+      redirect("/");
 
       // router.push("/dashboard");
     } catch (error) {

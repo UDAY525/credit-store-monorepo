@@ -22,7 +22,7 @@ export async function registerAction(_prevState: unknown, formData: FormData) {
     console.log("validated");
 
     const response = await fetch(
-      `${process.env.BACKEND_DOMAIN}/api/auth/register`,
+      `${process.env.NEXT_PUBLIC_BACKEND_DOMAIN}/api/auth/register`,
       {
         method: "POST",
         headers: {
