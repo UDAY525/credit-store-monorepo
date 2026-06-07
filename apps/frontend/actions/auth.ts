@@ -1,18 +1,13 @@
 "use server";
-import { UserLoginSchema } from "@credit-store/shared";
-type LoginState = {
-  success: boolean;
-  message?: string;
-  errors?: any;
-  data?: any;
-};
 
-export async function loginAction(
-  prevState: LoginState | undefined,
-  formData: FormData,
-): Promise<LoginState> {
+import { UserRegisterSchema } from "@credit-store/shared";
+import { redirect } from "next/navigation";
+
+export async function registerAction(_prevState: unknown, formData: FormData) {
   try {
-    const validation = UserLoginSchema.safeParse({
+    console.log("action in");
+    const validation = UserRegisterSchema.safeParse({
+      name: formData.get("name"),
       email: formData.get("email"),
       password: formData.get("password"),
     });
@@ -24,29 +19,36 @@ export async function loginAction(
       };
     }
 
-    const res = await fetch("http://localhost:5000/api/auth/login", {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
+    console.log("validated");
+
+    const response = await fetch(
+      `${process.env.BACKEND_DOMAIN}/api/auth/register`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(validation.data),
+        cache: "no-store",
       },
-      body: JSON.stringify(validation.data),
-    });
+    );
 
-    const result = await res.json();
+    const result = await response.json();
 
-    if (!res.ok) {
+    if (!response.ok) {
       return {
         success: false,
-        message: result.message,
+        message: result.message ?? "Login failed",
       };
     }
-
     return {
       success: true,
+      message: "Register successful",
       data: result,
     };
   } catch (error) {
+    console.error(error);
+
     return {
       success: false,
       message: "Something went wrong",

@@ -23,6 +23,8 @@ authRoute.post("/register", async (req: Request, res: Response) => {
   if (!validationResult.success) {
     return res.status(400).json({
       errors: validationResult.error.flatten(),
+      success: false,
+      message: "Invalid Credentials",
     });
   }
 
@@ -43,17 +45,23 @@ authRoute.post("/register", async (req: Request, res: Response) => {
 
     await pool.query("COMMIT");
 
-    return res.status(201).json({ message: "Registered successfully" });
+    return res
+      .status(201)
+      .json({ success: true, message: "Registered successfully" });
   } catch (error: any) {
     await pool.query("ROLLBACK");
 
     // 4. Handle unique constraint violations (e.g., email already exists)
     if (error.code === "23505") {
-      return res.status(409).json({ message: "Email already registered" });
+      return res
+        .status(409)
+        .json({ success: false, message: "Email already registered" });
     }
 
     console.error("Registration error:", error);
-    return res.status(500).json({ message: "Internal server error" });
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
   }
 });
 
@@ -64,8 +72,12 @@ authRoute.post("/login", async (req, res) => {
     if (!validationResult.success) {
       return res.status(400).json({
         errors: validationResult.error.flatten(),
+        success: false,
+        message: "Invalid Credentials",
       });
     }
+
+    console.warn("Login Request Received");
 
     const { email, password } = validationResult.data;
 
@@ -85,6 +97,7 @@ authRoute.post("/login", async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(401).json({
         message: "Invalid credentials",
+        success: false,
       });
     }
 
@@ -95,6 +108,7 @@ authRoute.post("/login", async (req, res) => {
     if (!isValidPassword) {
       return res.status(401).json({
         message: "Invalid credentials",
+        success: false,
       });
     }
 
@@ -123,10 +137,10 @@ authRoute.post("/login", async (req, res) => {
     });
 
     return res.status(200).json({
-      message: "Logged In Succuess",
+      message: "Logged In Succuessfully",
+      success: true,
       data: {
-        user: loggedInUser,
-        token,
+        loggedInUser,
       },
     });
   } catch (error) {
@@ -134,6 +148,7 @@ authRoute.post("/login", async (req, res) => {
 
     return res.status(500).json({
       message: "Internal Server Error",
+      success: false,
     });
   }
 });
@@ -142,6 +157,7 @@ authRoute.post("/logout", (req: Request, res: Response) => {
   res.clearCookie("accessToken");
   return res.status(200).json({
     message: "Logged out successfully",
+    success: true,
   });
 });
 
@@ -151,6 +167,7 @@ authRoute.get("/getUser", async (req, res) => {
   if (!token) {
     return res.status(401).json({
       message: "Unauthorized",
+      success: false,
     });
   }
 
@@ -179,12 +196,14 @@ authRoute.get("/getUser", async (req, res) => {
 
     return res.status(200).json({
       message: "Fetched User",
+      success: true,
       data: {
         user,
       },
     });
   } catch {
     return res.status(401).json({
+      success: false,
       message: "Invalid token",
     });
   }

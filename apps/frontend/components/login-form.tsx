@@ -1,4 +1,5 @@
 "use client";
+
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,72 +16,110 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { loginAction } from "@/actions/auth";
-import { useActionState } from "react";
+import { toast } from "sonner";
+import { useState } from "react";
+import { ApiResponse, User } from "@credit-store/shared";
 
 export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-  const [state, action, isPending] = useActionState(loginAction, undefined);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    try {
+      setIsLoading(true);
+
+      const formData = new FormData(e.currentTarget);
+
+      const res = await fetch(`${process.env.BACKEND_DOMAIN}/api/auth/login`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: formData.get("email"),
+          password: formData.get("password"),
+        }),
+      });
+
+      const result: ApiResponse<User> = await res.json();
+
+      if (!result.success) {
+        toast.error(result.message ?? "Login failed");
+
+        return;
+      }
+
+      toast.success(result.message ?? "Logged in successfully");
+
+      console.log(result.data);
+
+      // router.push("/dashboard");
+    } catch (error) {
+      console.error(error);
+
+      toast.error("Something went wrong");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader className="text-center">
           <CardTitle className="text-xl">Welcome back</CardTitle>
+
           <CardDescription>Login with your credentials.</CardDescription>
         </CardHeader>
+
         <CardContent>
-          <form method="POST" action={action}>
+          <form method="POST" onSubmit={handleSubmit}>
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
+
                 <Input
                   id="email"
-                  type="email"
                   name="email"
+                  type="email"
                   placeholder="m@example.com"
                   required
                 />
               </Field>
+
               <Field>
                 <div className="flex items-center">
                   <FieldLabel htmlFor="password">Password</FieldLabel>
+
                   <a
                     href="#"
                     className="ml-auto text-sm underline-offset-4 hover:underline"
                   >
-                    Forgot your password?
+                    Forgot password?
                   </a>
                 </div>
-                <Input name="password" id="password" type="password" required />
+
+                <Input id="password" name="password" type="password" required />
               </Field>
+
               <Field>
-                <Button
-                  className="bg-black w-full text-white"
-                  variant={"outline"}
-                  type="submit"
-                  disabled={isPending}
-                >
-                  {isPending ? "Logging In..." : "Login"}
+                <Button className="w-full" type="submit" disabled={isLoading}>
+                  {isLoading ? "Logging in..." : "Login"}
                 </Button>
+
                 <FieldDescription className="text-center">
-                  Don&apos;t have an account? <a href="#">Sign up</a>
+                  Don&apos;t have an account? <a href="register">Sign up</a>
                 </FieldDescription>
               </Field>
             </FieldGroup>
-            {state?.success === false && (
-              <p className="text-red-500 text-center text-sm mt-2">
-                {state.message}
-              </p>
-            )}
           </form>
         </CardContent>
       </Card>
-      <FieldDescription className="px-6 text-center">
-        By clicking continue, you agree to our <a href="#">Terms of Service</a>{" "}
-        and <a href="#">Privacy Policy</a>.
-      </FieldDescription>
     </div>
   );
 }
